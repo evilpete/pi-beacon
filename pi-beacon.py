@@ -12,16 +12,16 @@ import email.utils
 import select
 import socket
 import struct
-import sys
+#import sys
 import time
-import urllib
+#import urllib
 import uuid
-import os
-import datetime
+#import os
+#import datetime
 
 import errno
-import signal
-import atexit
+#import signal
+#import atexit
 
 debug=0
 
@@ -38,7 +38,7 @@ isyaddr="10.1.1.36"
 # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 current_milli_time = lambda: int(round(time.time() * 1000))
 
-start_milli_time = 0;
+start_milli_time = 0
 
 
 
@@ -65,9 +65,14 @@ http_err="""<html>
 
 
 
-def grok(buf):
+def grok(buf, skip=0):
     r = dict()
-    for line in buf.split('\n')[1:]:
+    if skip:
+        buflines=buf.split('\n')[skip:]
+    else:
+        buflines=buf.split('\n')
+
+    for line in buflines:
         if not line:
             continue
         a = line.split(':', 1)
@@ -76,18 +81,30 @@ def grok(buf):
         k = a[0].strip().upper()
         v = a[1].strip()
         r[k]=v
-    return(r)
+    return r
 
 def cpuinfo():
     # Extract serial from cpuinfo file
     try:
         d = dict()
-        with  open('/proc/cpuinfo','r') as f:
+        with  open('/proc/cpuinfo', 'r') as f:
             b = f.read()
         d = grok(b)
     except:
         pass
-    return(d)
+    return d
+
+
+def meminfo():
+    # Extract from /proc/meminfofile
+    try:
+        d = dict()
+        with  open('/proc/meminfo', 'r') as f:
+            b = f.read()
+        d = grok(b)
+    except:
+        pass
+    return d
 
 def getmyip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -106,20 +123,23 @@ class pi_beacon(object):
         # self.mip = '10.1.1.255'
         self.uport = 1900
         self.tport = 44444
-        self.uuid = str( uuid.uuid1(uuid.getnode(), 0 ) )
+        self.uuid = str(uuid.uuid1(uuid.getnode(), 0))
         self.server_version="Unspecified, UPnP/1.0, Unspecified"
+
+        #load_age=":".join(str(x) for x in os.getloadavg())
+
 
         self.hwinfo = cpuinfo()
         serial = self.hwinfo.get("SERIAL", "0000000000000000")
         hardware = self.hwinfo.get("HARDWARE", "??")
-	modelnum = self.hwinfo.get("REVISION", "??")
+        modelnum = self.hwinfo.get("REVISION", "??")
 
         self.perm_uuid = "Socket-1_0-" + serial
 
         self.url = "http://{0}:{1}/info.xml".format(self.myip, self.tport)
-        self.data = loc_data.format( hardware=hardware, uuid=self.perm_uuid,
-	    serial=serial, revision=modelnum,
-	    ip_addr=self.myip)
+        self.data = loc_data.format(hardware=hardware, uuid=self.perm_uuid,
+            serial=serial, revision=modelnum,
+            ip_addr=self.myip)
 
         if debug:
             print self.url
@@ -129,20 +149,20 @@ class pi_beacon(object):
 
         self.location_url="http://{0}/upnpxml/rpi.xml".format(self.myip)
 
-        self.infd = [ ]
+        self.infd = []
 
         mreq = struct.pack("=4sl", socket.inet_aton("239.255.255.250"), socket.INADDR_ANY)
 
         #Set up UDP reciver socket
-        self.usock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.usock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.usock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.usock.setblocking(0)
-        self.usock.bind(('',self.uport))
+        self.usock.bind(('', self.uport))
         self.usock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-        self.usock.setsockopt(socket.IPPROTO_IP,socket.IP_ADD_MEMBERSHIP, mreq)
+        self.usock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
 
-        self.tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM )
+        self.tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.tsock.bind((self.myip, self.tport))
         self.tsock.setblocking(0)
         self.tsock.listen(8)
@@ -177,11 +197,11 @@ class pi_beacon(object):
                 continue
             else:
                 if debug:
-                    print "ssock #", s.fileno(), ":",  len(self.infd)
+                    print "ssock #", s.fileno(), ":", len(self.infd)
                 data, sender = s.recvfrom(1024)
                 if not data:
                     self.infd.remove(s)
-                    del(s)
+                    del s
                 else:
                     self.handle_web(data, sender, s)
 
@@ -237,7 +257,7 @@ class pi_beacon(object):
             if debug:
                 # print "Unknown request:\n", data
                 print "handle_upnp skip", sender
-            del(data)
+            del data
             return
         else:
             if debug:
@@ -274,8 +294,8 @@ class pi_beacon(object):
                   "01-NLS: {!s}\r\n"
                   "Content-Length: 0\r\n"
                   "\r\n".format(date_str, self.location_url,
-                          self.server_version,
-                          st, reply_uuid, self.uuid))
+                      self.server_version,
+                      st, reply_uuid, self.uuid))
 
         if debug:
             print "=====\n", len(msguuid), "\n", msguuid, "->", sender, "\n\n"
@@ -283,7 +303,7 @@ class pi_beacon(object):
 
         temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         temp_socket.sendto(msguuid, sender)
-        del(temp_socket)
+        del temp_socket
 
 
     def send_notify(self, usn=None):
@@ -297,32 +317,32 @@ class pi_beacon(object):
             usn = "uuid:" + self.perm_uuid
 
 
-
                   # "01-NLS: {!s}\r\n"
                   # "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
         msgssdp = ("NOTIFY * HTTP/1.1\r\n"
-                  "HOST: 239.255.255.250:1900\r\n"
-                  "CACHE-CONTROL: max-age=300\r\n"
-                  "LOCATION: {!s}\r\n"
-                  "NT: {!s}\r\n"
-                  "NTS: ssdp:alive\r\n"
-                  "X-User-Agent: redsonic\r\n"
-                  "SERVER: {!s}\r\n"
-                  "USN: uuid:{!s}\r\n"
-                  "\r\n".format(
-                          self.url,
-                          usn,
-                          self.server_version,
-                          reply_uuid, self.uuid))
+		    "HOST: 239.255.255.250:1900\r\n"
+		    "CACHE-CONTROL: max-age=300\r\n"
+		    "LOCATION: {!s}\r\n"
+		    "NT: {!s}\r\n"
+		    "NTS: ssdp:alive\r\n"
+		    "X-User-Agent: redsonic\r\n"
+		    "SERVER: {!s}\r\n"
+		    "USN: uuid:{!s}\r\n"
+		    "\r\n".format(
+			self.url,
+			usn,
+			self.server_version,
+			reply_uuid))
+			# self.uuid
 
         if debug:
             print "=====\n", len(msgssdp), "\n", msgssdp, "->", ('239.255.255.250', 1900), "\n\n"
 
         temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         temp_socket.sendto(msgssdp, ('239.255.255.250', 1900))
-        del(temp_socket)
+        del temp_socket
 
-        # self.usock.sendto(msgssdp, ( self.uip, self.uport))
+        # self.usock.sendto(msgssdp, (self.uip, self.uport))
 
 #       msgroot = ("NOTIFY * HTTP/1.1\r\n"
 #                 "HOST: 239.255.255.250:1900\r\n"
