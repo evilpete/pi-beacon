@@ -16,7 +16,7 @@ import struct
 import time
 #import urllib
 import uuid
-#import os
+import os
 #import datetime
 
 import errno
@@ -45,7 +45,7 @@ start_milli_time = 0
 loc_data = """<root>
     <device>
         <deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>
-        <friendlyName>rpi</friendlyName>
+        <friendlyName>{friendname}</friendlyName>
         <manufacturer>rasberry pi</manufacturer>
         <manufacturerURL>https://www.raspberrypi.org/</manufacturerURL>
         <modelName>{hardware}</modelName>
@@ -125,6 +125,7 @@ class pi_beacon(object):
         self.tport = 44444
         self.uuid = str(uuid.uuid1(uuid.getnode(), 0))
         self.server_version="Unspecified, UPnP/1.0, Unspecified"
+	self.hostname = os.uname()[1]
 
         #load_age=":".join(str(x) for x in os.getloadavg())
 
@@ -139,6 +140,7 @@ class pi_beacon(object):
         self.url = "http://{0}:{1}/info.xml".format(self.myip, self.tport)
         self.data = loc_data.format(hardware=hardware, uuid=self.perm_uuid,
             serial=serial, revision=modelnum,
+	    friendname=self.hostname,
 	    modelnumber=modelnum,
             ip_addr=self.myip)
 

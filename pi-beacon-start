@@ -30,15 +30,20 @@ case "$1" in
     start)
         log_daemon_msg "Starting $DESC" "$NAME"
     	start-stop-daemon --start --background --chuid $DAEMON_UID --chdir $DIR -pidfile $PIDFILE --make-pidfile --exec  $DAEMON  -- $DAEMON_ARGS
+	log_end_msg $?
         ;;
     restart|reload|force-reload)
         echo "Error: argument '$1' not supported" >&2
         exit 3
         ;;
+#    status)
+#	status_of_proc -p $PIDFILE $NAME $DAEMON && exit 0 || exit $?
+#	;;
     stop)
         log_daemon_msg "Stopping $DESC" "$NAME"
 	# start-stop-daemon --stop --pidfile $PIDFILE --retry 10
 	start-stop-daemon --oknodo --stop --quiet --name pi-beacon.py
+	log_end_msg $?
         ;;
     *)
         echo "Usage: $0 start|stop" >&2
