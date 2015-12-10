@@ -139,6 +139,7 @@ class pi_beacon(object):
         self.url = "http://{0}:{1}/info.xml".format(self.myip, self.tport)
         self.data = loc_data.format(hardware=hardware, uuid=self.perm_uuid,
             serial=serial, revision=modelnum,
+	    modelnumber=modelnum,
             ip_addr=self.myip)
 
         if debug:

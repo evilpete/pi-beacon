@@ -5,7 +5,7 @@
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Set the CPU Frequency Scaling governor to "ondemand"
+# Short-Description: UPNP announce
 ### END INIT INFO
 
 
@@ -16,7 +16,7 @@ DIR=/var/lib/${DAEMON_NAME}
 DAEMON=${DIR}/${DAEMON_NAME}.py
 DAEMON_ARGS="-l"
 [ -x "$DAEMON" ] || exit 0
-DESC="MeMo emulator"
+DESC="UPNP announce"
 NAME="pi-beacon.py"
 
 # The process ID of the script when it runs is stored here:
