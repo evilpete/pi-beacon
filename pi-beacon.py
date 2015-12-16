@@ -338,13 +338,13 @@ class pi_beacon(object):
 
                   # "01-NLS: {!s}\r\n"
                   # "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
+                  # "X-User-Agent: redsonic\r\n"
         msgssdp = ("NOTIFY * HTTP/1.1\r\n"
                     "HOST: 239.255.255.250:1900\r\n"
                     "CACHE-CONTROL: max-age=300\r\n"
                     "LOCATION: {LocationUrl}\r\n"
                     "NT: {NotificationType}\r\n"
                     "NTS: {NtsStr}\r\n"
-                    "X-User-Agent: redsonic\r\n"
                     "SERVER: {ServerInfo}\r\n"
                     "USN: uuid:{UniqueServiceName}\r\n"
                     "\r\n".format(
@@ -393,7 +393,8 @@ b.send_notify("upnp:rootdevice")
 
 while True:
     b.poll()
-    if (int(time.time()) - b.timeout) > 240 :
+    if (int(time.time()) - b.lastnotify) > 240 :
         b.send_notify()
         b.send_notify("upnp:rootdevice")
+
 
