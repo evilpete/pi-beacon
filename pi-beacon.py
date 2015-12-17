@@ -25,7 +25,7 @@ import errno
 #import signal
 #import atexit
 
-debug = 0
+debug = 1
 
 
 base_port = 54900
@@ -40,17 +40,32 @@ start_milli_time = 0
 
 
 loc_data = """<root>
+    <specVersion>
+          <major>1</major>
+          <minor>0</minor> 
+    </specVersion > 
     <device>
         <deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>
         <friendlyName>{friendname}</friendlyName>
-        <manufacturer>rasberry pi</manufacturer>
+        <manufacturer>raapsberry pi</manufacturer>
         <manufacturerURL>https://www.raspberrypi.org/</manufacturerURL>
+        <modelDescription>{modeldesc}</modelDescription>
         <modelName>{hardware}</modelName>
         <modelURL>https://www.raspberrypi.org/</modelURL>
         <modelNumber>{modelnumber}</modelNumber>
         <UDN>{uuid}</UDN>
+        <UPC>???</UPC>
         <serialNumber>{serial}</serialNumber>
         <presentationURL>http://{ip_addr}/</presentationURL>
+        <iconList>
+            <icon>
+                <mimetype>image/jpeg</mimetype>
+                <width>64</width>
+                <height>64</height>
+                <depth>24</depth>
+                <url>/icon.jpg</url>
+            </icon>
+        </iconList>
     </device>
 </root>
 """
@@ -59,6 +74,65 @@ http_err = """<html>
 <head><title>404 Not Found</title></head>
 <body><h1>404 Not Found</h1></body>
 """
+
+icon_dat="""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"""
+
+modelnames = {
+ '0002' : "Model B Revision 1.0",
+ '0003' : "Model B Revision 1.0 + ECN0001",
+ 
+ '0004' : "Model B Revision 2.0 (256MB)",
+ '0005' : "Model B Revision 2.0 (256MB)",
+ '0006' : "Model B Revision 2.0 (256MB)",
+
+ '0007' : "Model A",
+ '0008' : "Model A",
+ '0009' : "Model A",
+
+ '000d' : "Model B Revision 2.0 (512MB)",
+ '000e' : "Model B Revision 2.0 (512MB)",
+ '000f' : "Model B Revision 2.0 (512MB)",
+ # 700371902605
+
+
+ '0010' : "Model B+",
+ # 640522710164
+
+ '0011' : "Compute Module",
+
+ '0012' : "Model A+",
+ # 702658303617
+
+ 'a01041' : "Pi 2 Model B (Sony, UK)",
+ 'a21041' : "Pi 2 Model B (Embest, China)"
+ # Pi2 Pi640522710515
+}
 
 #def Exit_gracefully(signal, frame):
 #    if debug:
@@ -139,6 +213,7 @@ class pi_beacon(object):
         serial = self.hwinfo.get("SERIAL", "0000000000000000")
         hardware = self.hwinfo.get("HARDWARE", "??")
         modelnum = self.hwinfo.get("REVISION", "??")
+        modeldesc = modelnames.get(modelnum, "??")
 
         self.perm_uuid = "Socket-1_0-" + serial
 
@@ -147,7 +222,9 @@ class pi_beacon(object):
                                     serial=serial, revision=modelnum,
                                     friendname=self.hostname,
                                     modelnumber=modelnum,
+                                    modeldesc=modeldesc,
                                     ip_addr=self.myip)
+        self.icon_dat = icon_dat.decode("base64")
 
         if debug:
             print self.url
@@ -155,7 +232,7 @@ class pi_beacon(object):
 
             print "UUID", self.uuid
 
-        self.location_url = "http://{0}/upnpxml/rpi.xml".format(self.myip)
+        self.location_url = "http://{0}:{1}/info.xml".format(self.myip, self.tport)
 
         self.infd = []
 
@@ -171,7 +248,12 @@ class pi_beacon(object):
 
 
         self.tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tsock.bind((self.myip, self.tport))
+        try:
+            self.tsock.bind((self.myip, self.tport))
+        except socket.error, e:
+            print "IP/PORT=", self.myip, self.tport
+            raise
+
         self.tsock.setblocking(0)
         self.tsock.listen(8)
         # self.tport = self.socket.getsockname()[1]
@@ -221,36 +303,49 @@ class pi_beacon(object):
 
         if data.startswith("GET /"):
             f = data.split(' ')[1]
+            date_str = email.utils.formatdate(timeval=None, localtime=False, usegmt=True)
 
-            if f != "/info.xml":
-                if debug:
+            msg = ("HTTP/1.1 200 OK\r\n"
+                      "CONTENT-LENGTH: {contlen}\r\n"
+                      "CONTENT-TYPE: {conttype}\r\n"
+                      "DATE: {curdate}\r\n"
+                      "LAST-MODIFIED: Sat, 01 Jan 2000 00:01:15 GMT\r\n"
+                      "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
+                      "X-User-Agent: redsonic\r\n"
+                      "CONNECTION: close\r\n"
+                      "\r\n"
+                      "{msgdata}")
 
-                    print ">> 404 send"
+            if f == "/info.xml":
+
+              message = msg.format(contlen=len(self.data),
+                                     conttype="text/xml",
+                                     curdate=date_str,
+                                     msgdata=self.data)
+
+            elif f == "/icon.jpg":
+
+              message = msg.format(contlen=len(self.icon_dat),
+                                     conttype="image/jpeg",
+                                     curdate=date_str,
+                                     msgdata=self.icon_dat)
+
+            else:
+
                 message = ("HTTP/1.1 404 Not Found\r\n"
                            "CONNECTION: close\r\n"
                            "Content-Length: {:d}\r\n"
                            "\r\n{:s}".format(len(http_err), http_err))
                 if debug:
+                    print ">> 404 send"
                     print message
-            else:
-                date_str = email.utils.formatdate(timeval=None, localtime=False, usegmt=True)
-                message = ("HTTP/1.1 200 OK\r\n"
-                          "CONTENT-LENGTH: {contlend}\r\n"
-                          "CONTENT-TYPE: text/xml\r\n"
-                          "DATE: {curdate}\r\n"
-                          "LAST-MODIFIED: Sat, 01 Jan 2000 00:01:15 GMT\r\n"
-                          "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
-                          "X-User-Agent: redsonic\r\n"
-                          "CONNECTION: close\r\n"
-                          "\r\n"
-                          "{msgdata}".format(contlend=len(self.data),
-                                             curdate=date_str,
-                                             msgdata=self.data))
-	    try:
-		s.send(message)
-	    except socket.error, e:
-		if e.errno == errno.ECONNRESET:
-		    print str(e)
+
+
+            try:
+                s.send(message)
+            except socket.error, e:
+                if e.errno == errno.ECONNRESET:
+                    print str(e)
 
         return
 
