@@ -24,13 +24,14 @@ PIDFILE=/var/run/$DAEMON_NAME.pid
 
 
 . /lib/init/vars.sh
-. /lib/lsb/init-functions
+# . /lib/lsb/init-functions
+
 
 case "$1" in
     start)
-        log_daemon_msg "Starting $DESC" "$NAME"
+        # log_daemon_msg "Starting $DESC" "$NAME"
     	start-stop-daemon --start --background --chuid $DAEMON_UID --chdir $DIR -pidfile $PIDFILE --make-pidfile --exec  $DAEMON  -- $DAEMON_ARGS
-	log_end_msg $?
+	# log_end_msg $?
         ;;
     restart|reload|force-reload)
         echo "Error: argument '$1' not supported" >&2
