@@ -1,0 +1,20 @@
+[Unit]
+Description=pi-beacon Daemon
+After=syslog.target network-online.target
+ 
+# sockets.target
+
+[Service]
+User=lp
+Group=lp
+
+Type=simple
+ExecStart=/var/lib/pi-beacon/pi-beacon.py
+TimeoutStopSec=10
+RestartSec=5
+KillMode=process
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

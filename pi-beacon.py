@@ -25,12 +25,13 @@ import errno
 #import signal
 #import atexit
 
-debug = 1
-
+debug = 0
 
 base_port = 54900
 
 udp_resend=True
+pid_dir="/var/tmp"
+pidpath=None
 
 # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 current_milli_time = lambda: int(round(time.time() * 1000))
@@ -479,6 +480,13 @@ class pi_beacon(object):
 
 b = pi_beacon()
 
+try:
+    pidpath = pid_dir + "/pi-beacon.pid"
+    with open(pidpath, 'w', 0644) as f:
+	f.write("{}\n".format(os.getpid()))
+except Exception, e:
+    print "failed to open", pidpath, e
+    pidpath = None
 
 b.send_notify()
 b.send_notify("upnp:rootdevice")
