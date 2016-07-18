@@ -22,11 +22,11 @@ install-script:
 install-systemd:
 	cp pi-beacon.service /lib/systemd/system/
 	chmod 644  /lib/systemd/system/pi-beacon.service
-
-# test -d /lib/systemd/system && ln -sf /dev/null /lib/systemd/system/pi-beacon.service
+	systemctl enable pi-beacon
 
 uninstall:
 	 -update-rc.d pi-beacon disable
+	 -systemctl disable pi-beacon
 	 -rm -f /lib/systemd/system/pi-beacon.service
 	 -rm -f /etc/init.d/pi-beacon
 	 -rm -f /etc/rc?.d/[SK]??pi-beacon

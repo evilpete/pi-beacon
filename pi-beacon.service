@@ -11,7 +11,7 @@ Group=lp
 Type=simple
 ExecStart=/var/lib/pi-beacon/pi-beacon.py
 TimeoutStopSec=10
-RestartSec=5
+RestartSec=10s
 KillMode=process
 
 Restart=on-failure
