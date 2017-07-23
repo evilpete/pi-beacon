@@ -3,6 +3,8 @@
 #!/usr/bin/env python
 
 
+# pylint: disable=invalid-name
+# global-statement,protected-access,invalid-name,missing-docstring,broad-except,too-many-branches,no-name-in-module
 
 # "alexa  Discover my devices"
 # For a complete discussion, see http://www.makermusings.com
@@ -18,33 +20,33 @@ import time
 import uuid
 import os
 #import datetime
-import signal
+# import signal
 
 
 import errno
 #import signal
 #import atexit
 
-debug = 0
+DEBUG = 0
 
-base_port = 54900
+# base_port = 54900
 
-udp_resend=True
-pid_dir="/var/tmp"
-pidpath=None
+# udp_resend = True
+PID_DIR = "/var/tmp"
+pidpath = None
 
 # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-current_milli_time = lambda: int(round(time.time() * 1000))
+# current_milli_time = lambda: int(round(time.time() * 1000))
 
-start_milli_time = 0
+#start_milli_time = 0
 
 
 
-loc_data = """<root>
+LOC_DATA = """<root>
     <specVersion>
           <major>1</major>
-          <minor>0</minor> 
-    </specVersion > 
+          <minor>0</minor>
+    </specVersion >
     <device>
         <deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>
         <friendlyName>{friendname}</friendlyName>
@@ -67,16 +69,18 @@ loc_data = """<root>
                 <url>/icon.jpg</url>
             </icon>
         </iconList>
+        <serviceList>
+        </serviceList>
     </device>
 </root>
 """
 
-http_err = """<html>
+HTTP_ERR = """<html>
 <head><title>404 Not Found</title></head>
 <body><h1>404 Not Found</h1></body>
 """
 
-icon_dat="""/9j/4AAQSkZJRgABAQAAAQABAAD/4QAYRXhpZgAASUkqAAgAAAAAAAAAAAAAAP/bAEMABgQFBgUE
+ICON_DAT = """/9j/4AAQSkZJRgABAQAAAQABAAD/4QAYRXhpZgAASUkqAAgAAAAAAAAAAAAAAP/bAEMABgQFBgUE
 BgYFBgcHBggKEAoKCQkKFA4PDBAXFBgYFxQWFhodJR8aGyMcFhYgLCAjJicpKikZHy0wLSgwJSgp
 KP/bAEMBBwcHCggKEwoKEygaFhooKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo
 KCgoKCgoKCgoKCgoKP/AABEIAEAAQAMBIgACEQEDEQH/xAAdAAACAQQDAAAAAAAAAAAAAAAACAQD
@@ -104,39 +108,39 @@ RsG0n74xWXVw2hLaEobSEoSAEpSMAD0Fc1YvAIooooi0r1m6PPainSdRaSfaj3xaB8REeH0ZhSMA
 A5pq+j/R46VuDV/1LLanX1LZSy0ynDETcMK2k8qURxuOOCQB51sLSGjNPaOjOsabtUeCl0guKTlS
 3Mdty1EqP6msgoAmq17pi5sfawm6tFFFFSsC/9k="""
 
-modelnames = {
- '0002' : "Model B Revision 1.0",
- '0003' : "Model B Revision 1.0 + ECN0001",
- 
- '0004' : "Model B Revision 2.0 (256MB)",
- '0005' : "Model B Revision 2.0 (256MB)",
- '0006' : "Model B Revision 2.0 (256MB)",
+MODELNAMES = {
+    '0002' : "Model B Revision 1.0",
+    '0003' : "Model B Revision 1.0 + ECN0001",
 
- '0007' : "Model A",
- '0008' : "Model A",
- '0009' : "Model A",
+    '0004' : "Model B Revision 2.0 (256MB)",
+    '0005' : "Model B Revision 2.0 (256MB)",
+    '0006' : "Model B Revision 2.0 (256MB)",
 
- '000d' : "Model B Revision 2.0 (512MB)",
- '000e' : "Model B Revision 2.0 (512MB)",
- '000f' : "Model B Revision 2.0 (512MB)",
- # 700371902605
+    '0007' : "Model A",
+    '0008' : "Model A",
+    '0009' : "Model A",
 
+    '000d' : "Model B Revision 2.0 (512MB)",
+    '000e' : "Model B Revision 2.0 (512MB)",
+    '000f' : "Model B Revision 2.0 (512MB)",
+    # 700371902605
 
- '0010' : "Model B+",
- # 640522710164
+    '0010' : "Model B+",
+    # 640522710164
 
- '0011' : "Compute Module",
+    '0011' : "Compute Module",
 
- '0012' : "Model A+",
- # 702658303617
+    '0012' : "Model A+",
+    # 702658303617
 
- 'a01041' : "Pi 2 Model B (Sony, UK)",
- 'a21041' : "Pi 2 Model B (Embest, China)"
- # Pi2 Pi640522710515
+    'a01041' : "Pi 2 Model B (Sony, UK)",
+    'a21041' : "Pi 2 Model B (Embest, China)"
+    # Pi2 Pi640522710515
+
 }
 
 #def Exit_gracefully(signal, frame):
-#    if debug:
+#    if DEBUG:
 #        print "Exiting in a Graceful way"
 #    b.send_notify(None, True)
 #    b.send_notify("upnp:rootdevice", True)
@@ -145,7 +149,11 @@ modelnames = {
 
 
 def grok(buf, skip=0):
-    r = dict()
+    """
+        Grok:  verb, informal
+        understand (something) intuitively or by empathy
+    """
+    ret = dict()
     if skip:
         buflines = buf.split('\n')[skip:]
     else:
@@ -154,47 +162,56 @@ def grok(buf, skip=0):
     for line in buflines:
         if not line:
             continue
-        a = line.split(':', 1)
-        if len(a) < 2:
+        buf_list = line.split(':', 1)
+        if len(buf_list) < 2:
             continue
-        k = a[0].strip().upper()
-        v = a[1].strip()
-        r[k] = v
-    return r
+        ky = buf_list[0].strip().upper()
+        val = buf_list[1].strip()
+        ret[ky] = val
+    return ret
 
 def cpuinfo():
-    # Extract serial from cpuinfo file
+    """
+        Extract serial from cpuinfo file
+    """
     try:
         # d = dict()
-        with  open('/proc/cpuinfo', 'r') as f:
-            b = f.read()
-        d = grok(b, 1)
-    except:
+        with  open('/proc/cpuinfo', 'r') as fd:
+            info = fd.read()
+        ret = grok(info, 1)
+    except Exception as _:
         return {}
-    return d
+    return ret
 
 
 def meminfo():
-    # Extract from /proc/meminfofile
+    """
+        Extract from /proc/meminfofile
+    """
     try:
-        d = dict()
-        with  open('/proc/meminfo', 'r') as f:
-            b = f.read()
-        d = grok(b)
-    except:
+        ret = dict()
+        with  open('/proc/meminfo', 'r') as fd:
+            info = fd.read()
+        ret = grok(info)
+    except Exception as _:
         return {}
-    return d
+    return ret
 
 def getmyip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 53))
-    myip = s.getsockname()[0]
-    s.close()
+    """
+        get IP address on host
+    """
+    soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    soc.connect(("8.8.8.8", 53))
+    myip = soc.getsockname()[0]
+    soc.close()
     return myip
 
 
 class pi_beacon(object):
-
+    """
+        A classy beacon pi
+    """
     def __init__(self, timeout=10):
         self.timeout = timeout
         self.myip = getmyip()
@@ -211,23 +228,23 @@ class pi_beacon(object):
 
 
         self.hwinfo = cpuinfo()
-        serial = self.hwinfo.get("SERIAL", "0000000000000000")
+        serial = self.hwinfo.get("SERIAL", "0000000000000000000")
         hardware = self.hwinfo.get("HARDWARE", "??")
         modelnum = self.hwinfo.get("REVISION", "??")
-        modeldesc = modelnames.get(modelnum, "??")
+        modeldesc = MODELNAMES.get(modelnum, "??")
 
-        self.perm_uuid = "Socket-1_0-" + serial
+        self.perm_uuid = "RPI-1_0-" + serial
 
         self.url = "http://{0}:{1}/info.xml".format(self.myip, self.tport)
-        self.data = loc_data.format(hardware=hardware, uuid=self.perm_uuid,
+        self.data = LOC_DATA.format(hardware=hardware, uuid=self.perm_uuid,
                                     serial=serial, revision=modelnum,
                                     friendname=self.hostname,
                                     modelnumber=modelnum,
                                     modeldesc=modeldesc,
                                     ip_addr=self.myip)
-        self.icon_dat = icon_dat.decode("base64")
+        self.icon_dat = ICON_DAT.decode("base64")
 
-        if debug:
+        if DEBUG:
             print self.url
             print self.data
 
@@ -251,8 +268,8 @@ class pi_beacon(object):
         self.tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.tsock.bind((self.myip, self.tport))
-        except socket.error, e:
-            print "IP/PORT=", self.myip, self.tport
+        except socket.error, err:
+            print "IP/PORT=", self.myip, self.tport, err
             raise
 
         self.tsock.setblocking(0)
@@ -263,124 +280,126 @@ class pi_beacon(object):
         self.infd.append(self.usock)
 
     def poll(self):
-
-        if debug:
+        """
+            poll for net connections
+        """
+        if DEBUG:
             print "infd:", len(self.infd), self.infd
 
-        readfd, writefd, errfd = select.select(self.infd, [], [], self.timeout)
+        readfd, _, _ = select.select(self.infd, [], [], self.timeout)
 
         # print "readfd:", len(readfd), len(self.infd)
-        #print "writefd:", len(writefd)
-        #print "errfd:", len(errfd)
+        # print "writefd:", len(writefd)
+        # print "errfd:", len(errfd)
 
         for s in readfd:
             if s is self.tsock:
-                if debug:
+                if DEBUG:
                     print "tsock"
                 client_sock, client_address = s.accept()
                 client_sock.setblocking(0)
                 self.infd.append(client_sock)
                 continue
             elif s is self.usock:
-                if debug:
+                if DEBUG:
                     print "usock"
-                self.handle_upnp(s)
+                self._handle_upnp(s)
                 continue
             else:
-                if debug:
+                if DEBUG:
                     print "ssock #", s.fileno(), ":", len(self.infd)
                 data, sender = s.recvfrom(1024)
                 if not data:
                     self.infd.remove(s)
                     del s
                 else:
-                    self.handle_web(data, sender, s)
+                    self._handle_web(data, sender, s)
 
 
-    def handle_web(self, data, sender, s):
-        if debug:
-            print "handle_web"
-            print "handle_web ->", sender, "\n", data
+    def _handle_web(self, data, sender, s):
+        """
+            Handle web requests
+        """
+        if DEBUG:
+            print "_handle_web"
+            print "_handle_web ->", sender, "\n", data
 
         if data.startswith("GET /"):
             f = data.split(' ')[1]
             date_str = email.utils.formatdate(timeval=None, localtime=False, usegmt=True)
 
             msg = ("HTTP/1.1 200 OK\r\n"
-                      "CONTENT-LENGTH: {contlen}\r\n"
-                      "CONTENT-TYPE: {conttype}\r\n"
-                      "DATE: {curdate}\r\n"
-                      "LAST-MODIFIED: Sat, 01 Jan 2000 00:01:15 GMT\r\n"
-                      "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
-                      "X-User-Agent: redsonic\r\n"
-                      "CONNECTION: close\r\n"
-                      "\r\n"
-                      "{msgdata}")
+                   "CONTENT-LENGTH: {contlen}\r\n"
+                   "CONTENT-TYPE: {conttype}\r\n"
+                   "DATE: {curdate}\r\n"
+                   "LAST-MODIFIED: Sat, 01 Jan 2000 00:01:15 GMT\r\n"
+                   "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
+                   "X-User-Agent: redsonic\r\n"
+                   "CONNECTION: close\r\n"
+                   "\r\n"
+                   "{msgdata}")
 
             if f == "/info.xml":
-
-              message = msg.format(contlen=len(self.data),
+                message = msg.format(contlen=len(self.data),
                                      conttype="text/xml",
                                      curdate=date_str,
                                      msgdata=self.data)
 
             elif f == "/icon.jpg":
-
-              message = msg.format(contlen=len(self.icon_dat),
+                message = msg.format(contlen=len(self.icon_dat),
                                      conttype="image/jpeg",
                                      curdate=date_str,
                                      msgdata=self.icon_dat)
 
             else:
-
                 message = ("HTTP/1.1 404 Not Found\r\n"
                            "CONNECTION: close\r\n"
                            "Content-Length: {:d}\r\n"
-                           "\r\n{:s}".format(len(http_err), http_err))
-                if debug:
+                           "\r\n{:s}".format(len(HTTP_ERR), HTTP_ERR))
+                if DEBUG:
                     print ">> 404 send"
                     print message
 
 
             try:
                 s.send(message)
-            except socket.error, e:
-                if e.errno == errno.ECONNRESET:
-                    print str(e)
+            except socket.error, err:
+                if err.errno == errno.ECONNRESET:
+                    print str(err)
 
         return
 
-    def handle_upnp(self, s):
+    def _handle_upnp(self, s):
 
         data, sender = s.recvfrom(1024)
 
         if sender[0] == self.myip:
-            if debug:
-                print "handle_upnp ->", sender
+            if DEBUG:
+                print "_handle_upnp ->", sender
             return
 
 
-        if data.startswith("M-SEARCH") == False:
-            if debug:
+        if data.startswith("M-SEARCH") is False:
+            if DEBUG:
                 # print "Unknown request:\n", data
-                print "handle_upnp skip", sender
+                print "_handle_upnp skip", sender
             del data
             return
         else:
-            if debug:
-                print "handle_upnp", sender, "\n"# , data
+            if DEBUG:
+                print "_handle_upnp", sender, "\n"# , data
             d = grok(data)
             if d['ST'] == "upnp:rootdevice":
-                self.reply_upnp(sender, d['ST'], d['ST'])
+                self._reply_upnp(sender, d['ST'], d['ST'])
             if d['ST'] == "ssdp:all":
-                self.reply_upnp(sender, "uuid:" + self.perm_uuid, None)
-                self.reply_upnp(sender, "upnp:rootdevice", "upnp:rootdevice")
+                self._reply_upnp(sender, "uuid:" + self.perm_uuid, None)
+                self._reply_upnp(sender, "upnp:rootdevice", "upnp:rootdevice")
 
 
 
-    def reply_upnp(self, sender, st, usn):
-        if debug:
-            print "reply_upnp", st, usn
+    def _reply_upnp(self, sender, st, usn):
+        if DEBUG:
+            print "_reply_upnp", st, usn
 
         date_str = email.utils.formatdate(timeval=None, localtime=False, usegmt=True)
         reply_uuid = self.perm_uuid
@@ -389,22 +408,22 @@ class pi_beacon(object):
 
 
         msguuid = ("HTTP/1.1 200 OK\r\n"
-                  "CACHE-CONTROL: max-age=300\r\n"
-                  "DATE: {CurDate}\r\n"
-                  "EXT:\r\n"
-                  "LOCATION: {LocationUrl}\r\n"
-                  "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
-                  "SERVER: {ServerInfo}\r\n"
-                  "X-User-Agent: redsonic\r\n"
-                  "ST: {SearchTarget}\r\n"
-                  "USN: uuid:{UniqueServiceName}\r\n"
-                  "01-NLS: {NetLocSig}\r\n"
-                  "Content-Length: 0\r\n"
-                  "\r\n".format(CurDate=date_str, LocationUrl=self.location_url,
-                                ServerInfo=self.server_version,
-                                SearchTarget=st, UniqueServiceName=reply_uuid, NetLocSig=self.uuid))
+                   "CACHE-CONTROL: max-age=300\r\n"
+                   "DATE: {CurDate}\r\n"
+                   "EXT:\r\n"
+                   "LOCATION: {LocationUrl}\r\n"
+                   "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
+                   "SERVER: {ServerInfo}\r\n"
+                   "X-User-Agent: redsonic\r\n"
+                   "ST: {SearchTarget}\r\n"
+                   "USN: uuid:{UniqueServiceName}\r\n"
+                   "01-NLS: {NetLocSig}\r\n"
+                   "Content-Length: 0\r\n"
+                   "\r\n".format(CurDate=date_str, LocationUrl=self.location_url,
+                                 ServerInfo=self.server_version,
+                                 SearchTarget=st, UniqueServiceName=reply_uuid, NetLocSig=self.uuid))
 
-        if debug:
+        if DEBUG:
             print "=====\n", len(msguuid), "\n", msguuid, "->", sender, "\n\n"
         #self.usock.sendto(msguuid, sender)
 
@@ -414,8 +433,10 @@ class pi_beacon(object):
 
 
     def send_notify(self, usn=None, byebye=False):
-
-        if debug:
+        """
+            Send Upnp notify packet
+        """
+        if DEBUG:
             print "send_notify", usn
 
         reply_uuid = self.perm_uuid
@@ -425,10 +446,10 @@ class pi_beacon(object):
         else:
             usn = "uuid:" + self.perm_uuid
 
-        if byebye: 
-            ntsstr="ssdp:byebye"
+        if byebye:
+            ntsstr = "ssdp:byebye"
         else:
-            ntsstr="ssdp:alive"
+            ntsstr = "ssdp:alive"
 
 
 
@@ -436,22 +457,22 @@ class pi_beacon(object):
                   # "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
                   # "X-User-Agent: redsonic\r\n"
         msgssdp = ("NOTIFY * HTTP/1.1\r\n"
-                    "HOST: 239.255.255.250:1900\r\n"
-                    "CACHE-CONTROL: max-age=300\r\n"
-                    "LOCATION: {LocationUrl}\r\n"
-                    "NT: {NotificationType}\r\n"
-                    "NTS: {NtsStr}\r\n"
-                    "SERVER: {ServerInfo}\r\n"
-                    "USN: uuid:{UniqueServiceName}\r\n"
-                    "\r\n".format(
-                        LocationUrl=self.url,
-                        NotificationType=usn,
-                        NtsStr=ntsstr,
-                        ServerInfo=self.server_version,
-                        UniqueServiceName=reply_uuid))
-                        # self.uuid
+                   "HOST: 239.255.255.250:1900\r\n"
+                   "CACHE-CONTROL: max-age=300\r\n"
+                   "LOCATION: {LocationUrl}\r\n"
+                   "NT: {NotificationType}\r\n"
+                   "NTS: {NtsStr}\r\n"
+                   "SERVER: {ServerInfo}\r\n"
+                   "USN: uuid:{UniqueServiceName}\r\n"
+                   "\r\n".format(
+                       LocationUrl=self.url,
+                       NotificationType=usn,
+                       NtsStr=ntsstr,
+                       ServerInfo=self.server_version,
+                       UniqueServiceName=reply_uuid))
+                       # self.uuid
 
-        if debug:
+        if DEBUG:
             print "=====\n", len(msgssdp), "\n", msgssdp, "->", ('239.255.255.250', 1900), "\n\n"
 
         temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -478,26 +499,26 @@ class pi_beacon(object):
 #                         reply_uuid))
 
 
-b = pi_beacon()
+beacon = pi_beacon()
 
 try:
-    pidpath = pid_dir + "/pi-beacon.pid"
-    with open(pidpath, 'w', 0644) as f:
-	f.write("{}\n".format(os.getpid()))
-except Exception, e:
-    print "failed to open", pidpath, e
+    pidpath = PID_DIR + "/pi-beacon.pid"
+    with open(pidpath, 'w', 0644) as pfd:
+        pfd.write("{}\n".format(os.getpid()))
+except IOError as err:
+    print "I/O error({0}): {1}".format(err.errno, err.strerror)
+    pidpath = None
+except Exception as err:
+    print "Unexpected error:", pidpath, err
     pidpath = None
 
-b.send_notify()
-b.send_notify("upnp:rootdevice")
+beacon.send_notify()
+beacon.send_notify("upnp:rootdevice")
 
 # signal.signal(signal.SIGINT, Exit_gracefully)
 # signal.signal(signal.SIGKIL, Exit_gracefully)
-
 while True:
-    b.poll()
-    if (int(time.time()) - b.lastnotify) > 240 :
-        b.send_notify()
-        b.send_notify("upnp:rootdevice")
-
-
+    beacon.poll()
+    if (int(time.time()) - beacon.lastnotify) > 240:
+        beacon.send_notify()
+        beacon.send_notify("upnp:rootdevice")
