@@ -5,6 +5,7 @@ BINDIR=/var/lib/pi-beacon/
 
 syntax:
 	python -m py_compile pi-beacon.py
+	python -m py_compile webhandler.py
 
 install: syntax install-script install-systemd
 

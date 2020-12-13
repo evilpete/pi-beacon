@@ -4,16 +4,19 @@
 
 
 # pylint: disable=invalid-name
-# global-statement,protected-access,invalid-name,missing-docstring,broad-except,too-many-branches,no-name-in-module
+# global-statement,protected-access,invalid-name,missing-docstring,
+# broad-except,too-many-branches,no-name-in-module
 
-# "alexa  Discover my devices"
-# For a complete discussion, see http://www.makermusings.com
+
+# https://github.com/miniupnp/miniupnp/blob/master/miniupnpc/testupnpigd.py
 
 import email.utils
 # import requests
 import select
 import socket
 import struct
+import platform
+
 #import sys
 import time
 #import urllib
@@ -22,12 +25,15 @@ import os
 #import datetime
 # import signal
 
-
 import errno
 #import signal
 #import atexit
 
+
+from webhandler import webHandler
+
 DEBUG = 0
+
 
 # base_port = 54900
 
@@ -40,7 +46,9 @@ pidpath = None
 
 #start_milli_time = 0
 
-
+MULTICAST_IPv6 = 'ff02::c' # ff02::f
+MULTICAST_IPv4 = '239.255.255.250'
+SSDP_PORT = 1900
 
 LOC_DATA = """<root>
     <specVersion>
@@ -109,34 +117,46 @@ A5pq+j/R46VuDV/1LLanX1LZSy0ynDETcMK2k8qURxuOOCQB51sLSGjNPaOjOsabtUeCl0guKTlS
 3Mdty1EqP6msgoAmq17pi5sfawm6tFFFFSsC/9k="""
 
 MODELNAMES = {
-    '0002' : "Model B Revision 1.0",
-    '0003' : "Model B Revision 1.0 + ECN0001",
+    '0002' : "Model B v 1.0",
+    '0003' : "Model B v 1.0 + ECN0001",
 
-    '0004' : "Model B Revision 2.0 (256MB)",
-    '0005' : "Model B Revision 2.0 (256MB)",
-    '0006' : "Model B Revision 2.0 (256MB)",
+    '0004' : "Model B v 2.0 (256MB)",
+    '0005' : "Model B v 2.0 (256MB)",
+    '0006' : "Model B v 2.0 (256MB)",
 
     '0007' : "Model A",
     '0008' : "Model A",
     '0009' : "Model A",
 
-    '000d' : "Model B Revision 2.0 (512MB)",
-    '000e' : "Model B Revision 2.0 (512MB)",
-    '000f' : "Model B Revision 2.0 (512MB)",
+    '000d' : "Model B v2.0 (512MB)",
+    '000e' : "Model B v2.0 (512MB)",
+    '000f' : "Model B v2.0 (512MB)",
     # 700371902605
 
     '0010' : "Model B+",
     # 640522710164
 
-    '0011' : "Compute Module",
+    '0011' : "Compute Module v1.0 512MB  (Sony UK)",
 
     '0012' : "Model A+",
+
+    '0013' : "Model B+",
+
+    '0014' : "Model CM1",
+
+    '0015' : "Model A+ v1.1 (Embest)",
     # 702658303617
 
     'a01041' : "Pi 2 Model B (Sony, UK)",
-    'a21041' : "Pi 2 Model B (Embest, China)"
     # Pi2 Pi640522710515
+    'a21041' : "Pi 2 Model B (Embest, China)",
+    
+    # Pi4
+    'c03112' : "Pi Model 4B v1.2 (Sony UK)",
+    'c03114' : "Pi Model 4B v1.4 (Sony UK)",
+    'd03114' : "Pi Model 4B v1.4 (Sony UK)",
 
+    'c03130' : "Pi 4000 v1.0 (Sony UK)"
 }
 
 #def Exit_gracefully(signal, frame):
@@ -145,7 +165,6 @@ MODELNAMES = {
 #    b.send_notify(None, True)
 #    b.send_notify("upnp:rootdevice", True)
 #    sys.exit(0)
-
 
 
 def grok(buf, skip=0):
@@ -170,16 +189,59 @@ def grok(buf, skip=0):
         ret[ky] = val
     return ret
 
+
+THERMAL_DEVS = [
+    "/sys/class/thermal/thermal_zone0/temp",
+    "/sys/bus/i2c/devices/0-002e/temp1_input",
+    "/sys/bus/i2c/devices/0-004c/temp1_input",
+    ]
+def system_temp():
+    temp_dev = None
+
+    for dev in THERMAL_DEVS:
+        if os.path.exists(dev):
+            temp_dev = dev
+            break
+
+    temp_c = 0.0
+    try:
+        if temp_dev is not None:
+            with open(temp_dev, 'r') as fd:
+                temp_raw = fd.read()
+            temp_c = int(temp_raw) / 1000.0
+    except IOError as err:
+        print "I/O error({0}): {1}".format(err.errno, err.strerror)
+    except Exception as err:
+        print "Unexpected error:", pidpath, err
+    return temp_c
+
+
+def system_load():
+    """
+        read system load from /proc/loadavg
+    """
+    try:
+        with open("/proc/loadavg", 'r') as fd:
+            load_raw = fd.read()
+            returnload_raw
+    except IOError as err:
+        print "I/O error({0}): {1}".format(err.errno, err.strerror)
+    except Exception as err:
+        print "Unexpected error:", pidpath, err
+    return ""
+
+
 def cpuinfo():
     """
         Extract serial from cpuinfo file
     """
     try:
         # d = dict()
-        with  open('/proc/cpuinfo', 'r') as fd:
+        with open('/proc/cpuinfo', 'r') as fd:
             info = fd.read()
         ret = grok(info, 1)
     except Exception as _:
+        print "Unexpected error: cpuinfo", __name__,  err
         return {}
     return ret
 
@@ -190,12 +252,13 @@ def meminfo():
     """
     try:
         ret = dict()
-        with  open('/proc/meminfo', 'r') as fd:
+        with open('/proc/meminfo', 'r') as fd:
             info = fd.read()
         ret = grok(info)
     except Exception as _:
         return {}
     return ret
+
 
 def getmyip():
     """
@@ -207,17 +270,56 @@ def getmyip():
     soc.close()
     return myip
 
+# https://stackoverflow.com/questions/16276913/reliably-get-ipv6-address-in-python
+def get_ip_6(host, port=0):
+    import socket
+    # search only for the wanted v6 addresses
+    result = socket.getaddrinfo(host, port, socket.AF_INET6)
+    return result # or:
+    return result[0][4][0] # just returns the first answer and only the address
+
+# https://stackoverflow.com/questions/16276913/reliably-get-ipv6-address-in-python/16277577#16277577
+def get_ip_6_list(host, port=0):
+     # search for all addresses, but take only the v6 ones
+     alladdr = socket.getaddrinfo(host,port)
+     ip6 = filter(
+         lambda x: x[0] == socket.AF_INET6, # means its ip6
+         alladdr
+     )
+     # if you want just the sockaddr
+     # return map(lambda x:x[4],ip6)
+     return list(ip6)[0][4][0]
+
+def write_pid_file():
+    """
+        create pid file at PID_DIR/pi-beacon.pid
+    """
+    if DEBUG:
+        print "write pid_file"
+    try:
+        pidpath = PID_DIR + "/pi-beacon.pid"
+        with open(pidpath, 'w', 0644) as pfd:
+            pfd.write("{}\n".format(os.getpid()))
+    except IOError as err:
+        print "I/O error({0}): {1}".format(err.errno, err.strerror)
+        pidpath = None
+    except Exception as err:
+        print "Unexpected error:", pidpath, err
+        pidpath = None
+
 
 class pi_beacon(object):
     """
         A classy beacon pi
     """
     def __init__(self, timeout=10):
+        if DEBUG:
+            print "pi_beacon __init__()", __name__
         self.timeout = timeout
         self.myip = getmyip()
-        self.uip = '239.255.255.250'
+        self.uipv4 = MULTICAST_IPv4,
         # self.mip = '10.1.1.255'
-        self.uport = 1900
+        self.uport = SSDP_PORT
         self.tport = 44444
         self.uuid = str(uuid.uuid1(uuid.getnode(), 0))
         self.server_version = "Unspecified, UPnP/1.0, Unspecified"
@@ -226,8 +328,8 @@ class pi_beacon(object):
 
         #load_age = ":".join(str(x) for x in os.getloadavg())
 
-
         self.hwinfo = cpuinfo()
+
         serial = self.hwinfo.get("SERIAL", "0000000000000000000")
         hardware = self.hwinfo.get("HARDWARE", "??")
         modelnum = self.hwinfo.get("REVISION", "??")
@@ -254,7 +356,24 @@ class pi_beacon(object):
 
         self.infd = []
 
-        mreq = struct.pack("=4sl", socket.inet_aton("239.255.255.250"), socket.INADDR_ANY)
+        mreq4 = struct.pack("=4sl", socket.inet_aton(MULTICAST_IPv4), socket.INADDR_ANY)
+        # print "mreq4", mreq4
+        mreq6 = struct.pack("=16si", socket.inet_pton(socket.AF_INET6, MULTICAST_IPv6), 1)
+        # print "mreq6", mreq6
+
+        # print "system", platform.system()
+
+        #  https://svn.python.org/projects/python/trunk/Demo/sockets/mcast.py
+        # https://www.programcreek.com/python/example/2787/socket.IPPROTO_IPV6
+        # https://www.programcreek.com/python/example/6636/socket.IP_MULTICAST_LOOP
+        #Set up UDP reciver socket
+        self.usock6 = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.usock6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.usock6.setblocking(0)
+        self.usock6.bind(('', self.uport))
+        # self.usock6.setsockopt(socket.IPPROTO_IPV6, socket.IP_MULTICAST_TTL, 2)
+        self.usock6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_MULTICAST_HOPS, 2)
+        self.usock6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, mreq6)
 
         #Set up UDP reciver socket
         self.usock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -262,14 +381,17 @@ class pi_beacon(object):
         self.usock.setblocking(0)
         self.usock.bind(('', self.uport))
         self.usock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-        self.usock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
+        self.usock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq4)
 
         self.tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.tsock.bind((self.myip, self.tport))
         except socket.error, err:
             print "IP/PORT=", self.myip, self.tport, err
+            raise
+        except Exception as err:
+            print "General Exception", err
+            print "IP/PORT=", self.myip, self.tport
             raise
 
         self.tsock.setblocking(0)
@@ -278,6 +400,7 @@ class pi_beacon(object):
 
         self.infd.append(self.tsock)
         self.infd.append(self.usock)
+        self.infd.append(self.usock6)
 
     def poll(self):
         """
@@ -360,7 +483,6 @@ class pi_beacon(object):
                     print ">> 404 send"
                     print message
 
-
             try:
                 s.send(message)
             except socket.error, err:
@@ -368,6 +490,18 @@ class pi_beacon(object):
                     print str(err)
 
         return
+
+    def _http_server(self, am):
+
+        webHandler.info_dat = self.data
+        webHandler.info_len = len(self.data)
+        webHandler.icon_dat = self.icon_dat
+        webHandler.icon_len = len(self.icon_dat)
+
+        server = HTTPServer(('', self.http_port), webHandler)
+        if self.verbose:
+            print('Started httpserver on port ', self.http_port)
+        server.serve_forever()
 
     def _handle_upnp(self, s):
 
@@ -377,7 +511,6 @@ class pi_beacon(object):
             if DEBUG:
                 print "_handle_upnp ->", sender
             return
-
 
         if data.startswith("M-SEARCH") is False:
             if DEBUG:
@@ -406,7 +539,6 @@ class pi_beacon(object):
         if usn is not None:
             reply_uuid = reply_uuid + "::" + usn
 
-
         msguuid = ("HTTP/1.1 200 OK\r\n"
                    "CACHE-CONTROL: max-age=300\r\n"
                    "DATE: {CurDate}\r\n"
@@ -433,11 +565,15 @@ class pi_beacon(object):
 
 
     def send_notify(self, usn=None, byebye=False):
+        self._send_notify(usn, byebye=False, ipv6=0);
+        self._send_notify(usn, byebye=False, ipv6=1);
+
+    def _send_notify(self, usn=None, byebye=False, ipv6=0):
         """
             Send Upnp notify packet
         """
         if DEBUG:
-            print "send_notify", usn
+            print "send_notify", usn, "ipv6=", ipv6
 
         reply_uuid = self.perm_uuid
 
@@ -446,18 +582,26 @@ class pi_beacon(object):
         else:
             usn = "uuid:" + self.perm_uuid
 
+        if ipv6:
+            mcastaddr = MULTICAST_IPv6
+            mcastaddr_str = "[" + MULTICAST_IPv4 + "]"
+            sock_type = socket.AF_INET6
+        else:
+            mcastaddr = MULTICAST_IPv4
+            mcastaddr_str = MULTICAST_IPv4
+            sock_type = socket.AF_INET
+
         if byebye:
             ntsstr = "ssdp:byebye"
         else:
             ntsstr = "ssdp:alive"
 
-
-
                   # "01-NLS: {!s}\r\n"
                   # "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
                   # "X-User-Agent: redsonic\r\n"
+                   # "HOST: 239.255.255.250:1900\r\n"
         msgssdp = ("NOTIFY * HTTP/1.1\r\n"
-                   "HOST: 239.255.255.250:1900\r\n"
+                   "HOST: {McastAddr}:{Port}\r\n"
                    "CACHE-CONTROL: max-age=300\r\n"
                    "LOCATION: {LocationUrl}\r\n"
                    "NT: {NotificationType}\r\n"
@@ -465,6 +609,8 @@ class pi_beacon(object):
                    "SERVER: {ServerInfo}\r\n"
                    "USN: uuid:{UniqueServiceName}\r\n"
                    "\r\n".format(
+                       McastAddr=mcastaddr_str,
+                       Port=SSDP_PORT,
                        LocationUrl=self.url,
                        NotificationType=usn,
                        NtsStr=ntsstr,
@@ -473,15 +619,16 @@ class pi_beacon(object):
                        # self.uuid
 
         if DEBUG:
-            print "=====\n", len(msgssdp), "\n", msgssdp, "->", ('239.255.255.250', 1900), "\n\n"
+            print "=====\n", len(msgssdp), "\n", msgssdp, "->", (mcastaddr, SSDP_PORT), "\n\n"
 
-        temp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        temp_socket.sendto(msgssdp, ('239.255.255.250', 1900))
+        temp_socket = socket.socket(sock_type, socket.SOCK_DGRAM)
+        temp_socket.sendto(msgssdp, (mcastaddr, SSDP_PORT))
+        # temp_socket.sendto(msgssdp, (MULTICAST_IPv4, SSDP_PORT))
         del temp_socket
 
         self.lastnotify = int(time.time())
-
-        # self.usock.sendto(msgssdp, (self.uip, self.uport))
+ 
+#       self.usock.sendto(msgssdp, (self.uipv4, self.uport))
 
 #       msgroot = ("NOTIFY * HTTP/1.1\r\n"
 #                 "HOST: 239.255.255.250:1900\r\n"
@@ -498,19 +645,11 @@ class pi_beacon(object):
 #                         self.server_version,
 #                         reply_uuid))
 
+write_pid_file()
 
 beacon = pi_beacon()
 
-try:
-    pidpath = PID_DIR + "/pi-beacon.pid"
-    with open(pidpath, 'w', 0644) as pfd:
-        pfd.write("{}\n".format(os.getpid()))
-except IOError as err:
-    print "I/O error({0}): {1}".format(err.errno, err.strerror)
-    pidpath = None
-except Exception as err:
-    print "Unexpected error:", pidpath, err
-    pidpath = None
+# beacon._http_server()
 
 beacon.send_notify()
 beacon.send_notify("upnp:rootdevice")
